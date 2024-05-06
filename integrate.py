@@ -257,37 +257,6 @@ def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callabl
     yield -(weights[:, _, _] * grad_glob_in_beta[:, _] * shapeF[..., _]).sum(0) * detBK
 
 
-def transport_matrix_with_stabilisation_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callable, gamma: float = 1) -> Iterable:
-  """
-    Same as `transport_matrix_iter` but now adds artificial streamline diffusion for stabilisation.
-
-    Parameters
-    ----------
-    Same as before.
-    gamma: float
-      Stabilisation parameter. Defaults to one. Bigger => more artificial diffusion.
-  """
-
-  weights = quadrule.weights
-  qpoints = quadrule.points
-
-  shapeF = shape2D_LFE(quadrule)
-  grad_shapeF = grad_shape2D_LFE(quadrule)
-
-  for (a, b, c), BK, BKinv, detBK in zip(mesh.points_iter(), mesh.BK, mesh.BKinv, mesh.detBK):
-
-    x = qpoints @ BK.T + a[_]
-    bx = beta(x)
-
-    grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
-    hK = np.sqrt(detBK) / 2
-    binf = np.abs(bx).max()
-    
-    # goes in front of the stabilisation integral
-    C = gamma * hK / binf
-
-    yield (weights[:, _, _] * (-grad_glob_in_beta[:, _] * shapeF[..., _] + C * grad_glob_in_beta[:, _] * grad_glob_in_beta[..., _])).sum(0) * detBK
-
 
 def poisson_rhs_iter(mesh: Triangulation, quadrule: QuadRule, f: Callable) -> Iterable:
 
