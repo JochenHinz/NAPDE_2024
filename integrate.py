@@ -227,6 +227,36 @@ def stiffness_with_diffusivity_iter(mesh: Triangulation, quadrule: QuadRule, fdi
     yield mat
 
 
+def transport_matrix_iter_session07(mesh: Triangulation, quadrule: QuadRule, beta: Callable) -> Iterable:
+  """
+    Iterator assembling the partially integrated transport matrix (cf. session 07).
+
+    \int -(\beta \cdot \nabla v) u
+
+    Parameters
+    ----------
+    The same as for `mass_with_reaction_iter` and `stiffness_with_diffusivity_iter`
+    but now the (nonoptional) `Callable` beta takes as input an array of shape
+    (nquadpoints, 2) and either returns an array of shape (nquadpoints, 2)
+    or (1, 2) where the latter means that the vector beta is constant.
+  """
+
+  weights = quadrule.weights
+  qpoints = quadrule.points
+
+  shapeF = shape2D_LFE(quadrule)
+  grad_shapeF = grad_shape2D_LFE(quadrule)
+
+  for (a, b, c), BK, BKinv, detBK in zip(mesh.points_iter(), mesh.BK, mesh.BKinv, mesh.detBK):
+
+    x = qpoints @ BK.T + a[_]
+    bx = beta(x)
+
+    grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
+
+    yield -(weights[:, _, _] * grad_glob_in_beta[:, _] * shapeF[..., _]).sum(0) * detBK
+
+
 def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callable) -> Iterable:
   """
     Iterator assembling the transport matrix.
@@ -254,8 +284,7 @@ def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callabl
 
     grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
 
-    yield -(weights[:, _, _] * grad_glob_in_beta[:, _] * shapeF[..., _]).sum(0) * detBK
-
+    yield (weights[:, _, _] * grad_glob_in_beta[..., _] * shapeF[: _]).sum(0) * detBK
 
 
 def poisson_rhs_iter(mesh: Triangulation, quadrule: QuadRule, f: Callable) -> Iterable:
