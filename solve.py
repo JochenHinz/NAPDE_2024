@@ -20,7 +20,7 @@ class NanVec(np.ndarray):
   def from_indices_data(cls, length, indices, data):
     'Instantiate NanVec x of length ``length`` satisfying x[indices] = data.'
     vec = cls(length)
-    vec[np.asarray(indices)] = np.asarray(data)
+    vec[np.asarray(indices, dtype=int)] = np.asarray(data)
     return vec
 
   def __new__(cls, length):
