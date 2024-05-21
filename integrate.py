@@ -14,7 +14,7 @@ from typing import Iterable, Callable
 
 
 def shape2D_LFE(quadrule: QuadRule) -> np.ndarray:
-  """
+  r"""
     Return the shape functions evaluated in the quadrature points
     associated with ``quadrule`` for the three local first order
     lagrangian finite element basis functions (hat functions) over the
@@ -44,7 +44,7 @@ def shape2D_LFE(quadrule: QuadRule) -> np.ndarray:
 
 
 def grad_shape2D_LFE(quadrule: QuadRule) -> np.ndarray:
-  """
+  r"""
     Return the local gradient of the shape functions evaluated in
     the quadrature points associated with ``quadrule`` for the three local
     first order lagrangian finite element basis functions (hat functions)
@@ -78,8 +78,8 @@ def grad_shape2D_LFE(quadrule: QuadRule) -> np.ndarray:
 
 
 def assemble_matrix_from_iterables(mesh: Triangulation, *system_matrix_iterables) -> sparse.csr_matrix:
-  """ Assemble sparse matrix from triangulation and system matrix iterables.
-      For examples, see end of the script. """
+  r""" Assemble sparse matrix from triangulation and system matrix iterables.
+       For examples, see end of the script. """
 
   triangles = mesh.triangles
   ndofs = len(mesh.points)
@@ -108,8 +108,8 @@ def assemble_matrix_from_iterables(mesh: Triangulation, *system_matrix_iterables
 
 
 def assemble_rhs_from_iterables(mesh: Triangulation, *rhs_iterables) -> np.ndarray:
-  """ Assemble right hand side from triangulation and local load vector iterables.
-      For examples, see end of the script. """
+  r""" Assemble right hand side from triangulation and local load vector iterables.
+       For examples, see end of the script. """
 
   triangles = mesh.triangles
   ndofs = len(mesh.points)
@@ -123,7 +123,7 @@ def assemble_rhs_from_iterables(mesh: Triangulation, *rhs_iterables) -> np.ndarr
 
 
 def mass_with_reaction_iter(mesh: Triangulation, quadrule: QuadRule, freact: Callable = None) -> Iterable:
-  """
+  r"""
     Iterator for the mass matrix, to be passed into `assemble_matrix_from_iterables`.
 
     Parameters
@@ -170,7 +170,7 @@ def mass_with_reaction_iter(mesh: Triangulation, quadrule: QuadRule, freact: Cal
 
 
 def stiffness_with_diffusivity_iter(mesh: Triangulation, quadrule: QuadRule, fdiffuse: Callable = None) -> Iterable:
-  """
+  r"""
     Iterator for the stiffness matrix, to be passed into `assemble_matrix_from_iterables`.
 
     Parameters
@@ -202,7 +202,7 @@ def stiffness_with_diffusivity_iter(mesh: Triangulation, quadrule: QuadRule, fdi
 
     # below an implementation using two for loops
 
-    """
+    r"""
       mat = np.zeros((3, 3), dtype=float)
 
       for i in range(3):
@@ -228,7 +228,7 @@ def stiffness_with_diffusivity_iter(mesh: Triangulation, quadrule: QuadRule, fdi
 
 
 def transport_matrix_iter_session07(mesh: Triangulation, quadrule: QuadRule, beta: Callable) -> Iterable:
-  """
+  r"""
     Iterator assembling the partially integrated transport matrix (cf. session 07).
 
     \int -(\beta \cdot \nabla v) u
@@ -258,7 +258,7 @@ def transport_matrix_iter_session07(mesh: Triangulation, quadrule: QuadRule, bet
 
 
 def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callable) -> Iterable:
-  """
+  r"""
     Iterator assembling the transport matrix.
 
     \int (\beta \cdot \nabla u) v
@@ -284,7 +284,49 @@ def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callabl
 
     grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
 
-    yield (weights[:, _, _] * grad_glob_in_beta[..., _] * shapeF[: _]).sum(0) * detBK
+    yield (weights[:, _, _] * grad_glob_in_beta[..., _] * shapeF[:, _]).sum(0) * detBK
+
+
+def streamline_diffusion_stabilisation_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callable, gamma: float = 1) -> Iterable:
+  r"""
+    Iterator assembling the streamline diffusion stabilisation matrix.
+
+    \sum_K \int_K d_k (\beta \cdot \nabla phi_i) (\beta \cdot \nabla phi_j) 
+
+    where d_K = \gamma h_K / |beta|_\infty
+
+    Parameters
+    ----------
+    mesh : :class:`Triangulation`
+      An instantiation of the `Triangulation` class, representing the mesh.
+    quadrule : :class: `QuadRule`
+      Instantiation of the `QuadRule` class with fields quadrule.points and
+      quadrule.weights. quadrule.simplex_type must be 'triangle'.
+    beta : :class: `Callable`
+      The (nonoptional) `Callable` beta takes as input an array of shape
+      (nquadpoints, 2) and either returns an array of shape (nquadpoints, 2)
+      or (1, 2) where the latter means that the vector beta is constant.
+    gamma : :class: `float`
+      The (optional) stabilisation parameter gamma > 0 for use in `d_k` defaults to 1.
+  """
+  assert gamma > 0
+  weights = quadrule.weights
+  qpoints = quadrule.points
+
+  grad_shapeF = grad_shape2D_LFE(quadrule)
+
+  for (a, b, c), BK, BKinv, detBK in zip(mesh.points_iter(), mesh.BK, mesh.BKinv, mesh.detBK):
+
+    x = qpoints @ BK.T + a[_]
+    bx = beta(x)
+
+    hK = np.sqrt(detBK) / 2
+    binf = np.abs(bx).max()
+    dk = gamma * hK / binf
+
+    grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
+
+    yield dk * (weights[:, _, _] * grad_glob_in_beta[:, _] * grad_glob_in_beta[..., _]).sum(0) * detBK
 
 
 def poisson_rhs_iter(mesh: Triangulation, quadrule: QuadRule, f: Callable) -> Iterable:

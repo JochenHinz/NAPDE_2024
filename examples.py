@@ -9,7 +9,7 @@ from util import np
 from quad import QuadRule, seven_point_gauss_6, univariate_gauss
 from integrate import stiffness_with_diffusivity_iter, assemble_matrix_from_iterables, \
                       assemble_rhs_from_iterables, poisson_rhs_iter, \
-                      assemble_neumann_rhs, mass_with_reaction_iter, transport_matrix_iter, transport_matrix_with_stabilisation_iter
+                      assemble_neumann_rhs, mass_with_reaction_iter, transport_matrix_iter, streamline_diffusion_stabilisation_iter
 from solve import solve_with_dirichlet_data
 from mesh import Triangulation
 
@@ -193,9 +193,10 @@ def session09_exercise01(quadrule2D: QuadRule,
 
   Miter = mass_with_reaction_iter(mesh, quadrule2D)
   Aiter = stiffness_with_diffusivity_iter(mesh, quadrule2D)
-  Biter = transport_matrix_with_stabilisation_iter(mesh, quadrule2D, beta, gamma=5)
+  Biter = transport_matrix_iter(mesh, quadrule2D, beta)
+  Stabiter = streamline_diffusion_stabilisation_iter(mesh, quadrule2D, beta, gamma=5)
 
-  S = assemble_matrix_from_iterables(mesh, Miter, Aiter, Biter)
+  S = assemble_matrix_from_iterables(mesh, Miter, Aiter, Biter, Stabiter)
 
   solution = solve_with_dirichlet_data(S, rhs, bindices, data)
 
