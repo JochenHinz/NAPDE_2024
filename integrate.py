@@ -284,7 +284,7 @@ def transport_matrix_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callabl
 
     grad_glob_in_beta = ((BKinv.T[_, _] * grad_shapeF[..., _, :]).sum(-1) * bx[:, _]).sum(-1)
 
-    yield (weights[:, _, _] * grad_glob_in_beta[..., _] * shapeF[:, _]).sum(0) * detBK
+    yield (weights[:, _, _] * grad_glob_in_beta[:, _] * shapeF[..., _]).sum(0) * detBK
 
 
 def streamline_diffusion_stabilisation_iter(mesh: Triangulation, quadrule: QuadRule, beta: Callable, gamma: float = 1) -> Iterable:
