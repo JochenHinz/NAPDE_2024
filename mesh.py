@@ -75,8 +75,9 @@ class Triangulation:
           [i01, i12, i20],
           [i20, i12, i2]
       ])
-      T[tri, tri] = 1
-      T[[i01, i01, i12, i12, i20, i20], [i0, i1, i1, i2, i2, i0]] = .5
+      T[np.asarray(tri, dtype=np.int32), np.asarray(tri, dtype=np.int32)] = 1
+      T[np.asarray([i01, i01, i12, i12, i20, i20], dtype=np.int32),
+        np.asarray([i0, i1, i1, i2, i2, i0], dtype=np.int32)] = .5
 
     triangles = np.array(triangles, dtype=int)
 
